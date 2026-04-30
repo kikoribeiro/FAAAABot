@@ -85,7 +85,8 @@ const scheduleNext = () => {
   const elapsed = state.lastPlayedAt ? now - state.lastPlayedAt : 0;
   const maxAllowed = Math.max(0, config.hardMaxMs - elapsed);
   const upper = Math.min(config.maxDelayMs, maxAllowed);
-  const delay = upper < config.minDelayMs ? 0 : randomDelay(config.minDelayMs, upper);
+  const delay =
+    upper < config.minDelayMs ? 0 : randomDelay(config.minDelayMs, upper);
 
   clearSchedule();
   state.playTimeout = setTimeout(playSound, delay);
@@ -133,7 +134,7 @@ const registerCommands = async () => {
   console.log(
     config.commandGuildId
       ? `Registered guild commands in ${config.commandGuildId}.`
-      : "Registered global commands (may take up to 1 hour to appear)."
+      : "Registered global commands (may take up to 1 hour to appear).",
   );
 };
 
