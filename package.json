@@ -1,0 +1,19 @@
+{
+  "name": "faaaabot",
+  "version": "1.0.0",
+  "description": "Discord voice bot that plays random faaaaaa sounds",
+  "main": "src/index.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@discordjs/voice": "^0.16.1",
+    "discord.js": "^14.16.0",
+    "dotenv": "^16.4.5",
+    "ffmpeg-static": "^5.2.0"
+  }
+}
