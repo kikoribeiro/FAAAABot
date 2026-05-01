@@ -129,7 +129,8 @@ const getBotVoiceChannel = async (guild) => {
     return null;
   }
 
-  const member = guild.members.me || (await guild.members.fetchMe().catch(() => null));
+  const member =
+    guild.members.me || (await guild.members.fetchMe().catch(() => null));
   return member?.voice?.channel || null;
 };
 
