@@ -18,6 +18,14 @@ Voice bot for Discord that joins your voice channel on command and plays a rando
    npm start
    ```
 6. In your server, run `/join` in chat while you are in the voice channel.
+7. Run `/fa` to play the sound instantly (useful for testing).
+
+## Commands
+
+- `/join` - Join your current voice channel and start the random timer.
+- `/fa` - Play the sound immediately and continue the random timer.
+- `/status` - Show the current channel and next play time.
+- `/leave` - Stop and leave the voice channel.
 
 ## Timing
 
