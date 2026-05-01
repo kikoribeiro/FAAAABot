@@ -124,6 +124,38 @@ const createPlayer = () => {
   return player;
 };
 
+const getBotVoiceChannel = async (guild) => {
+  if (!guild) {
+    return null;
+  }
+
+  const member = guild.members.me || (await guild.members.fetchMe().catch(() => null));
+  return member?.voice?.channel || null;
+};
+
+const connectToChannel = async (voiceChannel) => {
+  stopPlayback();
+  setDesiredChannel(voiceChannel);
+
+  const connection = joinVoiceChannel({
+    channelId: voiceChannel.id,
+    guildId: voiceChannel.guild.id,
+    adapterCreator: voiceChannel.guild.voiceAdapterCreator,
+    selfDeaf: true,
+  });
+
+  await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+
+  state.connection = connection;
+  attachConnectionListeners(connection);
+  if (!state.audioPlayer) {
+    state.audioPlayer = createPlayer();
+  }
+  connection.subscribe(state.audioPlayer);
+  state.lastPlayedAt = Date.now();
+  scheduleNext();
+};
+
 const stopPlayback = ({ clearDesired = false } = {}) => {
   clearSchedule();
   if (state.audioPlayer) {
@@ -296,45 +328,50 @@ client.on("interactionCreate", async (interaction) => {
       return;
     }
 
-    stopPlayback();
-    setDesiredChannel(voiceChannel);
-
-    const connection = joinVoiceChannel({
-      channelId: voiceChannel.id,
-      guildId: voiceChannel.guild.id,
-      adapterCreator: voiceChannel.guild.voiceAdapterCreator,
-      selfDeaf: true,
-    });
+    await interaction.deferReply();
 
     try {
-      await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+      await connectToChannel(voiceChannel);
     } catch (error) {
       console.error("Failed to connect to voice channel.", error);
-      connection.destroy();
-      await interaction.reply({
-        content: "Failed to join the voice channel.",
-        ephemeral: true,
-      });
+      stopPlayback();
+      await interaction.editReply("Failed to join the voice channel.");
       return;
     }
 
-    state.connection = connection;
-    attachConnectionListeners(connection);
-    state.audioPlayer = createPlayer();
-    connection.subscribe(state.audioPlayer);
-    state.lastPlayedAt = Date.now();
-    scheduleNext();
-
-    await interaction.reply(`Joined ${voiceChannel.name} and started playing.`);
+    await interaction.editReply(
+      `Joined ${voiceChannel.name} and started playing.`,
+    );
     return;
   }
 
   if (interaction.commandName === "fa") {
     if (!state.connection || !state.audioPlayer) {
-      await interaction.reply({
-        content: "I am not in a voice channel yet. Use /join first.",
-        ephemeral: true,
-      });
+      const botChannel = await getBotVoiceChannel(interaction.guild);
+      if (!isVoiceChannel(botChannel)) {
+        await interaction.reply({
+          content: "I am not in a voice channel yet. Use /join first.",
+          ephemeral: true,
+        });
+        return;
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+
+      try {
+        await connectToChannel(botChannel);
+      } catch (error) {
+        console.error("Failed to reattach to voice channel.", error);
+        stopPlayback();
+        await interaction.editReply(
+          "I could not rejoin the voice channel. Use /join again.",
+        );
+        return;
+      }
+
+      clearSchedule();
+      playSound();
+      await interaction.editReply("Faaaaaa!");
       return;
     }
 
@@ -346,8 +383,19 @@ client.on("interactionCreate", async (interaction) => {
 
   if (interaction.commandName === "status") {
     if (!state.connection || !state.audioPlayer) {
+      const botChannel = await getBotVoiceChannel(interaction.guild);
+      if (!isVoiceChannel(botChannel)) {
+        await interaction.reply({
+          content: "Not in a voice channel. Use /join first.",
+          ephemeral: true,
+        });
+        return;
+      }
+
       await interaction.reply({
-        content: "Not in a voice channel. Use /join first.",
+        content:
+          `I look connected to ${botChannel.name}, but my audio session ` +
+          "is not initialized. Run /join to re-sync.",
         ephemeral: true,
       });
       return;
