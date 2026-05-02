@@ -5,6 +5,8 @@ const {
   ChannelType,
   Client,
   GatewayIntentBits,
+  MessageFlags,
+  PermissionsBitField,
   REST,
   Routes,
   SlashCommandBuilder,
@@ -58,6 +60,28 @@ const isVoiceChannel = (channel) =>
   channel &&
   (channel.type === ChannelType.GuildVoice ||
     channel.type === ChannelType.GuildStageVoice);
+
+const getVoicePermissionError = (voiceChannel) => {
+  const me = voiceChannel.guild.members.me;
+  if (!me) {
+    return "I cannot read my permissions yet. Try again in a moment.";
+  }
+
+  const permissions = voiceChannel.permissionsFor(me);
+  if (!permissions) {
+    return "I cannot read permissions for that channel.";
+  }
+
+  const missing = [];
+  if (!permissions.has(PermissionsBitField.Flags.Connect)) {
+    missing.push("Connect");
+  }
+  if (!permissions.has(PermissionsBitField.Flags.Speak)) {
+    missing.push("Speak");
+  }
+
+  return missing.length ? `Missing permissions: ${missing.join(", ")}.` : null;
+};
 
 const setDesiredChannel = (channel) => {
   state.desiredChannelId = channel.id;
@@ -135,6 +159,11 @@ const getBotVoiceChannel = async (guild) => {
 };
 
 const connectToChannel = async (voiceChannel) => {
+  const permissionError = getVoicePermissionError(voiceChannel);
+  if (permissionError) {
+    throw new Error(permissionError);
+  }
+
   stopPlayback();
   setDesiredChannel(voiceChannel);
 
@@ -145,7 +174,7 @@ const connectToChannel = async (voiceChannel) => {
     selfDeaf: true,
   });
 
-  await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+  await entersState(connection, VoiceConnectionStatus.Ready, 60_000);
 
   state.connection = connection;
   attachConnectionListeners(connection);
@@ -296,7 +325,7 @@ client.on("interactionCreate", async (interaction) => {
     if (!interaction.inGuild()) {
       await interaction.reply({
         content: "Use this command in a server.",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -305,7 +334,7 @@ client.on("interactionCreate", async (interaction) => {
     if (!voiceChannel) {
       await interaction.reply({
         content: "Join a voice channel first, then run /join.",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -313,7 +342,7 @@ client.on("interactionCreate", async (interaction) => {
     if (!isVoiceChannel(voiceChannel)) {
       await interaction.reply({
         content: "The current channel is not a voice channel.",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -324,7 +353,7 @@ client.on("interactionCreate", async (interaction) => {
     ) {
       await interaction.reply({
         content: `Already in ${voiceChannel.name}.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -336,7 +365,9 @@ client.on("interactionCreate", async (interaction) => {
     } catch (error) {
       console.error("Failed to connect to voice channel.", error);
       stopPlayback();
-      await interaction.editReply("Failed to join the voice channel.");
+      await interaction.editReply(
+        error?.message || "Failed to join the voice channel.",
+      );
       return;
     }
 
@@ -352,12 +383,12 @@ client.on("interactionCreate", async (interaction) => {
       if (!isVoiceChannel(botChannel)) {
         await interaction.reply({
           content: "I am not in a voice channel yet. Use /join first.",
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       try {
         await connectToChannel(botChannel);
@@ -365,7 +396,8 @@ client.on("interactionCreate", async (interaction) => {
         console.error("Failed to reattach to voice channel.", error);
         stopPlayback();
         await interaction.editReply(
-          "I could not rejoin the voice channel. Use /join again.",
+          error?.message ||
+            "I could not rejoin the voice channel. Use /join again.",
         );
         return;
       }
@@ -388,7 +420,7 @@ client.on("interactionCreate", async (interaction) => {
       if (!isVoiceChannel(botChannel)) {
         await interaction.reply({
           content: "Not in a voice channel. Use /join first.",
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -397,7 +429,7 @@ client.on("interactionCreate", async (interaction) => {
         content:
           `I look connected to ${botChannel.name}, but my audio session ` +
           "is not initialized. Run /join to re-sync.",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -417,7 +449,7 @@ client.on("interactionCreate", async (interaction) => {
           config.maxDelayMs / 1000,
         )}s\n` +
         `Hard max: ${Math.round(config.hardMaxMs / 1000)}s`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
