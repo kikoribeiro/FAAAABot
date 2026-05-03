@@ -11,7 +11,7 @@ Voice bot for Discord that joins your voice channel on command and plays a rando
    ```
 3. Copy [./.env.example](.env.example) to `.env` and fill in:
    - `DISCORD_TOKEN`
-   - `COMMAND_GUILD_ID` (optional, for instant command updates in one server)
+   - `COMMAND_GUILD_ID` (optional, comma-separated for multiple servers)
 4. Put your mp3 file at `audio/faaaaaa.mp3` or set `AUDIO_FILE_PATH` in `.env`.
 5. Start the bot:
    ```bash

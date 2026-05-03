@@ -19,7 +19,11 @@ const audioFilePath = path.resolve(
 
 module.exports = {
   token: process.env.DISCORD_TOKEN,
-  commandGuildId: process.env.COMMAND_GUILD_ID || null,
+  commandGuildIds: process.env.COMMAND_GUILD_ID
+    ? process.env.COMMAND_GUILD_ID.split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)
+    : [],
   audioFilePath,
   minDelayMs,
   maxDelayMs,
